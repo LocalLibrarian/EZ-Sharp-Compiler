@@ -15,6 +15,12 @@ separators = ['\n']
 for c in '.()+=-/%*;<>, 	':
     separators.append(c)
     
+#Whitespace, can ignore for token generation
+whitespaces = [' ', '	', '\n']
+
+#Operators, require special handling due to being compound
+operators = ['<', '>', '=']
+    
 #Valid keywords
 keywords = ['def', 'fed', 'int', 'double', 'if', 'fi', 'then', 'else', 'while', 'do', 'od', 'print', 'return']
 
@@ -27,7 +33,7 @@ def throwError(lineNum, colNum, errorChar, line, errorType):
 
 #Writes tokens to output file
 def writeToken(tokenType, token):
-    OUTFILE.write(f'<{tokenType}> {token}\n')
+    outFile.write(f'<{tokenType}> {token}\n')
 
 """
 Actually does all the token finding.
@@ -37,20 +43,53 @@ characters until the next token separator (found in the separators list).
 This is Panic Mode implementation.
 """
 def getNextToken(lineNum, line):
+    token = ''
     panic = False
+    skip = False
     colNum = 1
     for c in line:
-        if(panic): #Panic Mode/error handling #TODO
-            if c in separators:
-                panic = False
+        if not skip:
+            if(panic): #Panic Mode/error handling #TODO
+                if c in separators:
+                    panic = False
+            else:
+                if(debug): print(f'{colNum} {c}')
+                #Check if char in alphabet at all, error if not
+                if c not in alphabet and c not in separators: 
+                    throwError(lineNum, colNum, c, line, 'Invalid Character')
+                    panic = True
+                    if(debug): print(f'Errored on line {lineNum} with char ({c})')
+                elif c in separators:
+                    #End of previous token OR multiple separators/whitespace in a row
+                    #OR comparator, i.e. ==/<>/>=/<=
+                    if token != '':
+                        writeToken('TEMP', token)
+                        if(debug): print(f'Read token {token}')
+                    if c not in whitespaces:
+                        if c in operators:
+                            if colNum < len(line):
+                                compound = False
+                                if c == '<':
+                                    if line[colNum] in ['>', '=']: compound = True
+                                elif c == '>':
+                                    if line[colNum] == '=': compound = True
+                                elif line[colNum] == '=': compound = True #c == '='
+                                if compound:
+                                    writeToken('TEMP', c + line[colNum])
+                                    skip = True
+                                    if(debug): print(f'Read token {c}{line[colNum]}')
+                                else:
+                                    writeToken('TEMP', c)
+                                    if(debug): print(f'Read token {c}')
+                        else:
+                            writeToken('TEMP', c)
+                            if(debug): print(f'Read token {c}')
+                    token = ''
+                else:
+                    token += c
+            colNum += 1
         else:
-            #Check if char in alphabet at all, error if not
-            if c not in alphabet and c not in separators: 
-                throwError(lineNum, colNum, c, line, 'Invalid Character')
-                panic = True
-                if(debug): print(f'Errored on line {lineNum} with char ({c})')
-        if(debug): print(f'{colNum} {c}')
-        colNum += 1
+            skip = False
 
 
 #Uses getNextToken to do real work, this just passes it lines and line numbers
