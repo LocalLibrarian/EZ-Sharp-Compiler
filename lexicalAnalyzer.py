@@ -73,6 +73,7 @@ def getNextToken(lineNum, line):
     Handle doubles: x.y format, rn seperates them as '.' is a sep
     Obviously get states correctly lol
     Panic mode implementation
+    Make it so can error on wrong states with correct column num
     """
     token = ''
     panic = False
