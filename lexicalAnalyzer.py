@@ -1,6 +1,7 @@
 #Constants
 ERRORFILE = 'errorLog.txt'
 OUTFILE = 'output.txt'
+BUFFERLENGTH = 2048
 
 #Global vars
 debug = False
@@ -18,8 +19,11 @@ for c in '.()+=-/%*;<>, 	':
 #Whitespace, can ignore for token generation
 whitespaces = [' ', '	', '\n']
 
-#Operators, require special handling due to being compound
-operators = ['<', '>', '=']
+#Comparators, require special handling due to being compound
+comparators = ['<', '>', '=']
+
+#Operators for doing math
+operators = ['+', '-', '/', '*', '%']
     
 #Valid keywords
 keywords = ['def', 'fed', 'int', 'double', 'if', 'fi', 'then', 'else', 'while', 'do', 'od', 'print', 'return']
@@ -33,7 +37,29 @@ def throwError(lineNum, colNum, errorChar, line, errorType):
 
 #Writes tokens to output file
 def writeToken(tokenType, token):
-    outFile.write(f'<{tokenType}> {token}\n')
+    outFile.write(f'<{tokenType}, {token}>\n')
+
+#Determines the type of the given token
+#using a list of states given and returns it
+def findTokenType(states, token):
+    #No states given, this is an error
+    if not states:
+        return 'ERROR'
+    #Token is a keyword
+    if token in keywords:
+        return 'keyword'
+    #Comparators/assignment
+    if token in comparators:
+        if token != '=':
+            return 'comparator'
+        return 'assignment'
+    if token in operators:
+        return 'operator'
+    #Seperators
+    if token in separators:
+        return 'seperator'
+    #Fail state
+    return 'ERROR'
 
 """
 Actually does all the token finding.
@@ -43,10 +69,16 @@ characters until the next token separator (found in the separators list).
 This is Panic Mode implementation.
 """
 def getNextToken(lineNum, line):
+    """TODO:
+    Handle doubles: x.y format, rn seperates them as '.' is a sep
+    Obviously get states correctly lol
+    Panic mode implementation
+    """
     token = ''
     panic = False
     skip = False
     colNum = 1
+    states = ['TEMP']
     for c in line:
         if not skip:
             if(panic): #Panic Mode/error handling #TODO
@@ -63,10 +95,10 @@ def getNextToken(lineNum, line):
                     #End of previous token OR multiple separators/whitespace in a row
                     #OR comparator, i.e. ==/<>/>=/<=
                     if token != '':
-                        writeToken('TEMP', token)
+                        writeToken(findTokenType(states, token), token)
                         if(debug): print(f'Read token {token}')
                     if c not in whitespaces:
-                        if c in operators:
+                        if c in comparators:
                             if colNum < len(line):
                                 compound = False
                                 if c == '<':
@@ -75,14 +107,14 @@ def getNextToken(lineNum, line):
                                     if line[colNum] == '=': compound = True
                                 elif line[colNum] == '=': compound = True #c == '='
                                 if compound:
-                                    writeToken('TEMP', c + line[colNum])
+                                    writeToken('comparator', c + line[colNum])
                                     skip = True
                                     if(debug): print(f'Read token {c}{line[colNum]}')
                                 else:
-                                    writeToken('TEMP', c)
+                                    writeToken(findTokenType(states, c), c)
                                     if(debug): print(f'Read token {c}')
                         else:
-                            writeToken('TEMP', c)
+                            writeToken(findTokenType(states, c), c)
                             if(debug): print(f'Read token {c}')
                     token = ''
                 else:
@@ -91,14 +123,36 @@ def getNextToken(lineNum, line):
         else:
             skip = False
 
-
 #Uses getNextToken to do real work, this just passes it lines and line numbers
 def lexicalAnalysis(inFile):
+    #Variable declarations
     lineNum = 1
-    for line in inFile:
-        getNextToken(lineNum, line)
-        lineNum += 1
-    
+    lined = ''
+    c1 = ''
+    c2 = ''
+    buffer1 = 'null'
+    buffer2 = 'null'
+    while(buffer2 != '' and buffer2!= ''):
+        #Add to buffers
+        buffer1 = inFile.read(BUFFERLENGTH)
+        buffer2 = inFile.read(BUFFERLENGTH)
+        #Consume buffer 1
+        for c1 in buffer1:
+            lined += c1
+            if(c1 == '\n'):
+                getNextToken(lineNum, lined)
+                lined = ''
+                lineNum += 1
+        #Consume buffer 2
+        for c2 in buffer2:
+            lined += c2
+            if(c2 == '\n'):
+                getNextToken(lineNum, lined)
+                lined = ''
+                lineNum += 1
+    #Gets last line of input
+    getNextToken(lineNum, lined)
+
     #Closing resources
     inFile.close()
     outFile.close()
@@ -106,8 +160,11 @@ def lexicalAnalysis(inFile):
     
 #Get input file name and open
 inFileStr = str(input('Enter input file name: '))
-inFileInput = inFileStr.split(' ') 
-inFile = open(inFileInput[0], 'r')
+inFileInput = inFileStr.split(' ')
+try:
+    inFile = open(inFileInput[0], 'r')
+except:
+    print(f'Failed to open file {inFileInput[0]}!')
 
 #Debug mode enabler
 if len(inFileInput) > 2:
