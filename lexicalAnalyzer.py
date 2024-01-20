@@ -2,9 +2,7 @@
 ERRORFILE = 'errorLog.txt'
 OUTFILE = 'output.txt'
 BUFFERLENGTH = 2048
-
-#Global vars
-debug = False
+FAILSTATE = 'FAIL'
 
 #Valid alphabet/characters, if a char isn't in this list or separators, immediately throw an error
 alphabet = []
@@ -39,87 +37,96 @@ def throwError(lineNum, colNum, errorChar, line, errorType):
 def writeToken(tokenType, token):
     outFile.write(f'<{tokenType}, {token}>\n')
 
-#Determines the type of the given token
-#using a list of states given and returns it
-def findTokenType(states, token):
-    #No states given, this is an error
-    if not states:
-        return 'ERROR'
-    #Token is a keyword
-    if token in keywords:
-        return 'keyword'
-    #Comparators/assignment
-    if token in comparators:
-        if token != '=':
-            return 'comparator'
-        return 'assignment'
-    if token in operators:
-        return 'operator'
-    #Seperators
-    if token in separators:
-        return 'seperator'
-    #Fail state
-    return 'ERROR'
+#Determines the type of the given token and outputs it
+def findTokenType(token, lineNum, colNum, line):
+    typed = 'null'
+    #Empty token given, this is an error
+    if not token:
+        typed = FAILSTATE
+    #Check alphabet validity of each char in token
+    i = 0
+    for c in token:
+        if c not in alphabet and c not in separators: 
+            throwError(lineNum, colNum - len(token) + i, c, line, 'Invalid Character')
+            typed = FAILSTATE
+        i += 1
+    #Fail means invalid character or other error, DO NOT write the token to output
+    if typed != FAILSTATE:
+        #Token is a keyword
+        if token in keywords:
+            typed = 'keyword'
+        #Comparators/assignment
+        elif token in comparators:
+            if token != '=':
+                typed = 'comparator'
+            else:
+                typed = 'assignment'
+        #Operators
+        elif token in operators:
+            typed = 'operator'
+        #Seperators
+        elif token in separators:
+            typed = 'seperator'
+        #Programmer-made identifiers
+        elif token in identifiers:
+            typed = 'identifier'
+        #Don't know token type yet, need to check states to determine
+        if(typed == 'null'):
+            writeToken('ERROR', token)
+        #Already determined token type, can write to output
+        else:
+            writeToken(typed, token)
 
 """
 Actually does all the token finding.
 
 For error handling, on an error, we throw the error, then skip all the next 
 characters until the next token separator (found in the separators list).
-This is Panic Mode implementation.
+This is Panic Mode implementation, it is implemented in findTokenType().
 """
 def getNextToken(lineNum, line):
     """TODO:
     Handle doubles: x.y format, rn seperates them as '.' is a sep
     Obviously get states correctly lol
-    Panic mode implementation
-    Make it so can error on wrong states with correct column num
     """
     token = ''
     panic = False
     skip = False
     colNum = 1
-    states = ['TEMP']
     for c in line:
         if not skip:
-            if(panic): #Panic Mode/error handling #TODO
-                if c in separators:
-                    panic = False
-            else:
-                if(debug): print(f'{colNum} {c}')
-                #Check if char in alphabet at all, error if not
-                if c not in alphabet and c not in separators: 
-                    throwError(lineNum, colNum, c, line, 'Invalid Character')
-                    panic = True
-                    if(debug): print(f'Errored on line {lineNum} with char ({c})')
-                elif c in separators:
-                    #End of previous token OR multiple separators/whitespace in a row
-                    #OR comparator, i.e. ==/<>/>=/<=
-                    if token != '':
-                        writeToken(findTokenType(states, token), token)
-                        if(debug): print(f'Read token {token}')
-                    if c not in whitespaces:
-                        if c in comparators:
-                            if colNum < len(line):
-                                compound = False
-                                if c == '<':
-                                    if line[colNum] in ['>', '=']: compound = True
-                                elif c == '>':
-                                    if line[colNum] == '=': compound = True
-                                elif line[colNum] == '=': compound = True #c == '='
-                                if compound:
-                                    writeToken('comparator', c + line[colNum])
-                                    skip = True
-                                    if(debug): print(f'Read token {c}{line[colNum]}')
-                                else:
-                                    writeToken(findTokenType(states, c), c)
-                                    if(debug): print(f'Read token {c}')
+            if c in separators:
+                #End of previous token OR multiple separators/whitespace in a row
+                #OR comparator, i.e. ==/<>/>=/<=
+                if token != '':
+                    findTokenType(token, lineNum, colNum, line)
+                if c not in whitespaces:
+                    if c in comparators:
+                        if colNum < len(line):
+                            compound = False
+                            #Checking if we have a compound comparator, i.e. ==, <=, >=, <>
+                            if c == '<':
+                                if line[colNum] in ['>', '=']: compound = True
+                            elif c == '>':
+                                if line[colNum] == '=': compound = True
+                            elif line[colNum] == '=': compound = True #c == '='
+                            if compound:
+                                writeToken('comparator', c + line[colNum])
+                                skip = True
+                            else:
+                                findTokenType(c, lineNum, colNum, line)
                         else:
-                            writeToken(findTokenType(states, c), c)
-                            if(debug): print(f'Read token {c}')
-                    token = ''
-                else:
-                    token += c
+                            """
+                            Edge-case: a comparator (<, >, =) at the end of input.
+                            In this case, just write that the token is a comparator, DO
+                            NOT access line[colNum], as that would be out of list bounds.
+                            """
+                            findTokenType(c, lineNum, colNum, line)
+                    else:
+                        findTokenType(c, lineNum, colNum, line)
+                token = ''
+            else:
+                token += c
             colNum += 1
         else:
             skip = False
@@ -161,16 +168,10 @@ def lexicalAnalysis(inFile):
     
 #Get input file name and open
 inFileStr = str(input('Enter input file name: '))
-inFileInput = inFileStr.split(' ')
 try:
-    inFile = open(inFileInput[0], 'r')
+    inFile = open(inFileStr, 'r')
 except:
-    print(f'Failed to open file {inFileInput[0]}!')
-
-#Debug mode enabler
-if len(inFileInput) > 2:
-    debug = True
-    print('DEBUG ON, SEE README FOR HOW TO NOT ENABLE THIS ON RUN')
+    print(f'Failed to open file {inFileStr}!')
 
 #Create error log file and output file
 outFile = open(OUTFILE, 'w')
