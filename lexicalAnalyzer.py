@@ -315,4 +315,6 @@ outFile = open(OUTFILE, 'w')
 errorFile = open(ERRORFILE, 'w')
 
 #Actual start of real work
-if not fail: lexicalAnalysis(inFile)
+if not fail: 
+    lexicalAnalysis(inFile)
+    print(f'Lexical analysis on file {inFileStr} completed')
