@@ -16,7 +16,7 @@ for c in 'qwertyuiopasdfghjklzxcvbnm1234567890':
     
 #Token separators. Used for error handling and alphabet checking
 separators = ['\n']
-for c in '.()+=-/%*;<>, 	':
+for c in '.()+=-/%*;<>, 	[]':
     separators.append(c)
     
 #Whitespace, can ignore for token generation
