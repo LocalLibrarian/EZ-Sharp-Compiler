@@ -1,6 +1,6 @@
 #Constants
-ERRORFILE = 'errorLog.txt'
-OUTFILE = 'output.txt'
+ERRORFILE = 'errorLogLexical.txt'
+OUTFILE = 'outputLexical.txt'
 BUFFERLENGTH = 2048
 FAILSTATE = 'FAIL'
 INVALIDCHAR = 'Invalid Character'
