@@ -1,0 +1,43 @@
+SYMBOL|[a-z]|[0-9]|=|+|-|/|*|%|(|)|[|]|>|<|==|<=|>=|<>|not|and|or|<double>|<integer>|double|int|,|;|def|fed|if|then|else|fi|do|od|while|print|return|.|$
+<program>|<program> ::= <fdecls> <declarations> <statement_seq>.|||||||||||||||||||||||<program> ::= <fdecls> <declarations> <statement_seq>.|<program> ::= <fdecls> <declarations> <statement_seq>.||<program> ::= <fdecls> <declarations> <statement_seq>.|<program> ::= <fdecls> <declarations> <statement_seq>.||<program> ::= <fdecls> <declarations> <statement_seq>.||||||<program> ::= <fdecls> <declarations> <statement_seq>.|<program> ::= <fdecls> <declarations> <statement_seq>.|<program> ::= <fdecls> <declarations> <statement_seq>.|<program> ::= <fdecls> <declarations> <statement_seq>.|
+<fdecls>|<fdecls> ::= EPSILON|||||||||||||||||||||||<fdecls> ::= EPSILON|<fdecls> ::= EPSILON||<fdecls> ::= EPSILON|<fdecls> ::= <fdec>; <fdecls'>||<fdecls> ::= EPSILON||||||<fdecls> ::= EPSILON|<fdecls> ::= EPSILON|<fdecls> ::= EPSILON|<fdecls> ::=  EPSILON|
+<fdecls'>|<fdecls'> ::= EPSILON|||||||||||||||||||||||<fdecls'> ::= EPSILON|<fdecls'> ::= EPSILON||<fdecls'> ::= EPSILON|<fdecls'> ::=  <fdecls>||<fdecls'> ::= EPSILON||||||<fdecls'> ::= EPSILON|<fdecls'> ::= EPSILON|<fdecls'> ::= EPSILON|<fdecls'> ::=  EPSILON|
+<fdec>||||||||||||||||||||||||||||<fdec> ::= def <type> <fname> (<params>) <declarations> <statement_seq> fed||||||||||||
+<params>|||||||||<params> ::= EPSILON|||||||||||||||<params> ::= <type> <var> <params'>|<params> ::= <type> <var> <params'>|||||||||||||||
+<params'>|||||||||<params'> ::= EPSILON|||||||||||||||||<params'> ::= , <params>||||||||||||||
+<fname>|<fname> ::= <id>|||||||||||||||||||||||||||||||||||||||
+<declarations>|<declarations> ::= EPSILON|||||||||||||||||||||||<declarations> ::= <decl>; <declarations'>|<declarations> ::= <decl>; <declarations'>||<declarations> ::= EPSILON||<declarations> ::= EPSILON|<declarations> ::= EPSILON||||||<declarations> ::= EPSILON|<declarations> ::= EPSILON|<declarations> ::= EPSILON|<declarations> ::= EPSILON|
+<declarations'>|<declarations'> ::= EPSILON|||||||||||||||||||||||<declarations'> ::= <declarations>|<declarations'> ::= <declarations>||<declarations'> ::= EPSILON||<declarations'> ::= EPSILON|<declarations'> ::= EPSILON||||||<declarations'> ::= EPSILON|<declarations'> ::= EPSILON|<declarations'> ::= EPSILON|<declarations'> ::= EPSILON|
+<decl>||||||||||||||||||||||||<decl> ::= <type> <varlist>|<decl> ::= <type> <varlist>|||||||||||||||
+<type>||||||||||||||||||||||||<type> ::= double|<type> ::= int|||||||||||||||
+<varlist>|<varlist> ::= <var><varlist'>|||||||||||||||||||||||||||||||||||||||
+<varlist'>||||||||||||||||||||||||||<varlist'> ::= , <varlist>|<varlist'> ::= EPSILON|||||||||||||
+<statement_seq>|<statement_seq> ::= <statement> <statement_seq'>||||||||||||||||||||||||||<statement_seq> ::= <statement> <statement_seq'>||<statement_seq> ::= EPSILON|<statement_seq> ::= <statement> <statement_seq'>||<statement_seq> ::= EPSILON|<statement_seq> ::= EPSILON||<statement_seq> ::= EPSILON|<statement_seq> ::= <statement> <statement_seq'>|<statement_seq> ::= <statement> <statement_seq'>|<statement_seq> ::= <statement> <statement_seq'>|<statement_seq> ::= EPSILON|
+<statement_seq'>|||||||||||||||||||||||||||<statement_seq'> ::= ; <statement_seq>||<statement_seq'> ::= EPSILON|||<statement_seq'> ::= EPSILON|<statement_seq'> ::= EPSILON||<statement_seq'> ::= EPSILON||||<statement_seq'> ::= EPSILON|
+<statement>|<statement> ::= <var> = <expr>||||||||||||||||||||||||||<statement> ::= EPSILON||<statement> ::= EPSILON|<statement> ::= if <bexpr> then <statement_seq> <statement'>||<statement> ::= EPSILON|<statement> ::= EPSILON||<statement> ::= EPSILON|<statement> ::= while <bexpr> do <statement_seq> od|<statement> ::= print <expr>|<statement> ::= return <expr>|<statement> ::= EPSILON|
+<statement'>||||||||||||||||||||||||||||||||<statement'> ::= else <statement_seq> fi|<statement'> ::= fi|||||||
+<expr>|<expr> ::= <term> <expr''>||||||||<expr> ::= <term> <expr''>|||||||||||||<expr> ::= <term> <expr''>|<expr> ::= <term> <expr''>|||||||||||||||||
+<expr'>||||<expr'> ::= + <term>|<expr'> ::= - <term>|||||||||||||||||||||||||||||||||||
+<expr''>||||<expr''> ::= <expr'> <expr''>|<expr''> ::= <expr'> <expr''>|||||<expr''> ::= EPSILON||<expr''> ::= EPSILON|<expr''> ::= EPSILON|<expr''> ::= EPSILON|<expr''> ::= EPSILON|<expr''> ::= EPSILON|<expr''> ::= EPSILON|<expr''> ::= EPSILON||||||||<expr''> ::= EPSILON|||<expr''> ::= EPSILON|||<expr''> ::= EPSILON|<expr''> ::= EPSILON||<expr''> ::= EPSILON||||<expr''> ::= EPSILON|
+<term>|<term> ::= <factor> <term''>||||||||<term> ::= <factor> <term''>|||||||||||||<term> ::= <factor> <term''>|<term> ::= <factor> <term''>|||||||||||||||||
+<term'>||||||<term'> ::=  / <factor>|<term'> ::= * <factor>|<term'> ::= % <factor>||||||||||||||||||||||||||||||||
+<term''>||||<term''> ::= EPSILON|<term''> ::= EPSILON|<term''> ::= <term'> <term''>|<term''> ::= <term'> <term''>|<term''> ::= <term'> <term''>||<term''> ::= EPSILON||<term''> ::= EPSILON|<term''> ::= EPSILON|<term''> ::= EPSILON|<term''> ::= EPSILON|<term''> ::= EPSILON|<term''> ::= EPSILON|<term''> ::= EPSILON||||||||<term''> ::= EPSILON|<term''> ::= EPSILON||<term''> ::= EPSILON|||<term''> ::= EPSILON|<term''> ::= EPSILON||<term''> ::= EPSILON||||<term''> ::= EPSILON|
+<factor>|<factor> ::= <id> <factor'>||||||||<factor> ::= (<expr>)|||||||||||||<factor> ::= <number>|<factor> ::= <number>|||||||||||||||||
+<factor'>||||<factor'> ::= EPSILON|<factor'> ::= EPSILON|<factor'> ::= EPSILON|<factor'> ::= EPSILON|<factor'> ::= EPSILON|<factor'> ::= (<exprseq>)|<factor'> ::= EPSILON|<factor'> ::= <var'>||<factor'> ::= EPSILON|<factor'> ::= EPSILON|<factor'> ::= EPSILON|<factor'> ::= EPSILON|<factor'> ::= EPSILON|<factor'> ::= EPSILON||||||||<factor'> ::= EPSILON|<factor'> ::= EPSILON||<factor'> ::= EPSILON|||<factor'> ::= EPSILON|<factor'> ::= EPSILON||<factor'> ::= EPSILON||||<factor'> ::= EPSILON|
+<exprseq>|<exprseq> ::= <expr> <exprseq'>||||||||<exprseq> ::= <expr> <exprseq'>|<exprseq> ::= EPSILON||||||||||||<exprseq> ::= <expr> <exprseq'>|<exprseq> ::= <expr> <exprseq'>|||||||||||||||||
+<exprseq'>||||||||||<exprseq'> ::= EPSILON||||||||||||||||<exprseq'> ::= , <exprseq>||||||||||||||
+<bexpr>|||||||||<bexpr> ::= <bterm> <bexpr'>||||||||||<bexpr> ::= <bterm> <bexpr'>|||||||||||||||||||||
+<bexpr'>||||||||||<bexpr'> ::= EPSILON|||||||||||<bexpr'> ::= or <bterm> <bexpr'>||||||||||<bexpr'> ::= EPSILON|||<bexpr'> ::= EPSILON||||||
+<bterm>|||||||||<bterm> ::= <bfactor> <bterm'>||||||||||<bterm> ::= <bfactor> <bterm'>|||||||||||||||||||||
+<bterm'>||||||||||<bterm'> ::= EPSILON||||||||||<bterm'> ::= and <bfactor> <bterm'>|<bterm'> ::= EPSILON||||||||||<bterm'> ::= EPSILON|||<bterm'> ::= EPSILON||||||
+<bfactor>|||||||||<bfactor> ::= (<bfactor'>||||||||||<bfactor> ::= not <bfactor>|||||||||||||||||||||
+<bfactor'>|<bfactor'> ::= <term> <expr''> <comp> <expr>)||||||||<bfactor'> ::= (<bfactor'> <bterm'> <bexpr'>)|<bfactor'> ::= EPSILON||||||||||<bfactor'> ::= EPSILON|<bfactor'> ::= EPSILON||||||||||<bfactor'> ::= EPSILON|||<bfactor'> ::= EPSILON||||||
+<comp>|||||||||||||<comp> ::= >|<comp> ::= <|<comp> ::= ==|<comp> ::= <=|<comp> ::= >=|<comp> ::= <>||||||||||||||||||||||
+<var>|<var> ::= <id> <var'>|||||||||||||||||||||||||||||||||||||||
+<var'>|||<var'> ::= EPSILON|<var'> ::= EPSILON|<var'> ::= EPSILON|<var'> ::= EPSILON|<var'> ::= EPSILON|<var'> ::= EPSILON||<var'> ::= EPSILON|<var'> ::= [<expr>]|<var'> ::= EPSILON|<var'> ::= EPSILON|<var'> ::= EPSILON|<var'> ::= EPSILON|<var'> ::= EPSILON|<var'> ::= EPSILON|<var'> ::= EPSILON||||||||<var'> ::= EPSILON|<var'> ::= EPSILON||<var'> ::= EPSILON|||<var'> ::= EPSILON|<var'> ::= EPSILON||<var'> ::= EPSILON||||<var'> ::= EPSILON|
+<letter>|<letter> ::= [a-z]|||||||||||||||||||||||||||||||||||||||
+<digit>||<digit> ::= [0-9]||||||||||||||||||||||||||||||||||||||
+<id>|<id> ::= <letter><id''>|||||||||||||||||||||||||||||||||||||||
+<id'>|<id'> ::= <letter>|<id'> ::= <digit>||||||||||||||||||||||||||||||||||||||
+<id''>|<id''> ::= <id'> <id''>|<id''> ::= <id'> <id''>|<id''> ::= EPSILON|<id''> ::= EPSILON|<id''> ::= EPSILON|<id''> ::= EPSILON|<id''> ::= EPSILON|<id''> ::= EPSILON|<id''> ::= EPSILON|<id''> ::= EPSILON|<id''> ::= EPSILON|<id''> ::= EPSILON|<id''> ::= EPSILON|<id''> ::= EPSILON|<id''> ::= EPSILON|<id''> ::= EPSILON|<id''> ::= EPSILON|<id''> ::= EPSILON||||||||<id''> ::= EPSILON|<id''> ::= EPSILON||<id''> ::= EPSILON|||<id''> ::= EPSILON|<id''> ::= EPSILON||<id''> ::= EPSILON||||<id''> ::= EPSILON|
+<number>||||||||||||||||||||||<number> ::= <double>|<number> ::= <integer>|||||||||||||||||
