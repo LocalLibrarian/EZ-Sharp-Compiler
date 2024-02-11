@@ -4,7 +4,7 @@ SYMBOL|[a-z]|[0-9]|=|+|-|/|*|%|(|)|[|]|>|<|==|<=|>=|<>|not|and|or|<double>|<inte
 <fdecls'>|<fdecls'> ::= EPSILON|||||||||||||||||||||||<fdecls'> ::= EPSILON|<fdecls'> ::= EPSILON||<fdecls'> ::= EPSILON|<fdecls'> ::=  <fdecls>||<fdecls'> ::= EPSILON||||||<fdecls'> ::= EPSILON|<fdecls'> ::= EPSILON|<fdecls'> ::= EPSILON|<fdecls'> ::=  EPSILON|
 <fdec>||||||||||||||||||||||||||||<fdec> ::= def <type> <fname> ( <params> ) <declarations> <statement_seq> fed||||||||||||
 <params>|||||||||<params> ::= EPSILON|||||||||||||||<params> ::= <type> <var> <params'>|<params> ::= <type> <var> <params'>|||||||||||||||
-<params'>|||||||||<params'> ::= EPSILON|||||||||||||||||<params'> ::= , <params>||||||||||||||
+<params'>|||||||||<params'> ::= EPSILON|<params'> ::= EPSILON||||||||||||||||<params'> ::= , <params>||||||||||||||
 <fname>|<fname> ::= <id>|||||||||||||||||||||||||||||||||||||||
 <declarations>|<declarations> ::= EPSILON|||||||||||||||||||||||<declarations> ::= <decl> ; <declarations'>|<declarations> ::= <decl> ; <declarations'>||<declarations> ::= EPSILON||<declarations> ::= EPSILON|<declarations> ::= EPSILON||||||<declarations> ::= EPSILON|<declarations> ::= EPSILON|<declarations> ::= EPSILON|<declarations> ::= EPSILON|
 <declarations'>|<declarations'> ::= EPSILON|||||||||||||||||||||||<declarations'> ::= <declarations>|<declarations'> ::= <declarations>||<declarations'> ::= EPSILON||<declarations'> ::= EPSILON|<declarations'> ::= EPSILON||||||<declarations'> ::= EPSILON|<declarations'> ::= EPSILON|<declarations'> ::= EPSILON|<declarations'> ::= EPSILON|
