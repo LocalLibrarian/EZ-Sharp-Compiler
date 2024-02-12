@@ -1,7 +1,6 @@
 #Constants
 TABLEFILE = 'table.csv' #CSV file for LL(1) table
 ERRORFILE = 'errorLogSyntax.txt'
-OUTFILE = 'outputSyntax.txt'
 INFILE = 'outputLexical.txt' #From lexicalAnalyzer.py
 EPSILON = 'EPSILON'
 SEP = '|'
@@ -144,9 +143,8 @@ def Parse():
 #Put the parsing table in memory
 table = readTable()
 
-#Open input file, create output file and error file
+#Open input file, create error file
 inFile = open(INFILE, 'r')
-outFile = open(OUTFILE, 'w')
 errorFile = open(ERRORFILE, 'w')
 
 #Start parsing
