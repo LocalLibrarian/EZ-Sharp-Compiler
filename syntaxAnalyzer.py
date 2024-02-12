@@ -18,6 +18,9 @@ directLook = ['keyword', 'seperator', 'operator', 'programEnder',
 #List of number lookups
 numbers = ['integer', 'double']
 
+#List of recognized identifier names to print
+variables = []
+
 '''
 Reads TABLEFILE and puts the LL(1) parser table in memory.
 Returns the table.
@@ -125,6 +128,9 @@ def Parse():
                     stack[0] == '[0-9]' and lineInfo[0] in numbers) or (
                         line == '' and stack[0] == END):
                     cont = False #Go to next line in input
+                    if stack[0] == '[a-z]' and lineInfo[0] == 'identifier' and (
+                        lineInfo[1] not in variables):
+                        variables.append(lineInfo[1])
                 del stack[0]
             else:
                 #Terminal did not match expected parse, throw error and delete
@@ -145,4 +151,7 @@ errorFile = open(ERRORFILE, 'w')
 
 #Start parsing
 Parse()
-print('Syntax analysis completed.')
+print('Syntax analysis completed. Recognized identifiers:')
+if len(variables) == 0: print("None parsed")
+else: 
+    for v in variables: print(v)
