@@ -59,6 +59,7 @@ def isSymbol(token):
 #Breaks output lines of lexicalAnalyzer up to make them easier to deal with.
 #First element is type of token, second element is token
 def parseLexicalOutput(line):
+    if line == '': return FAIL
     splitter = line.find(',')
     lineSplit = []
     lineSplit.append(line[1:splitter])
@@ -86,7 +87,6 @@ def parseLL1Output(production):
 
 #Syntax analysis of INFILE
 def Parse():
-    DELETEME = 0
     tokenNum = 0
     #Stack is list of elements on top of stack
     stack = [START, END]
@@ -99,6 +99,11 @@ def Parse():
         while cont:
             #While top of stack (leftmost item) is a symbol, keep doing prods
             while isSymbol(stack[0]):
+                #Empty input file, stop parsing and thow error
+                if lineInfo == FAIL:
+                    throwError(lineInfo, tokenNum, 'Empty File', 
+                           'stopping parsing')
+                    return
                 #Directly access table elements with token type
                 if lineInfo[0] in directLook:
                     stack = replace1st(stack, parseLL1Output(
