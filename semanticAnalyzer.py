@@ -40,8 +40,10 @@ class Keyword:
         #return f'KEYWORD: {self.line}, {self.lexeme}, {self.token}'
         #Properly return linkID to scope this token created on the stack
         if self.lexeme in newTables:
-            return f'KEYWORD, {self.lexeme}, link: {self.link + 1}'
-        return f'KEYWORD, {self.lexeme}'
+            return (f'KEYWORD [line: {self.line}, lexeme: {self.lexeme}, ' +
+                    f'token: {self.token}, link: {self.link + 1}]')
+        return (f'KEYWORD [line: {self.line}, lexeme: {self.lexeme}, token:' +
+                     f' {self.token}]')
 
 class Literal:
     def __init__(self, line, lexeme, token, type):
@@ -52,8 +54,8 @@ class Literal:
         self.link = linkNum
 
     def __str__(self):
-        #return f'LITERAL: {self.line}, {self.lexeme}, {self.token}, {self.type}'
-        return f'LITERAL, {self.lexeme}'
+        return (f'LITERAL [line: {self.line}, lexeme: {self.lexeme},' + 
+                f' token: {self.token}, type: {self.type}]')
 
 class IDVariable:
     def __init__(self, line, lexeme, token, type):
@@ -64,9 +66,8 @@ class IDVariable:
         self.link = linkNum
 
     def __str__(self):
-        #return f'IDENTIFIER (FUNCTION): {self.line}, {self.lexeme}, ' + (
-        #f'{self.token}, {self.type}')
-        return f'VARIABLE, {self.lexeme}'
+        return (f'VARIABLE [line: {self.line}, lexeme: {self.lexeme}' + 
+                f' token: {self.token}, type: {self.type}]')
 
 class IDFunction:
     def __init__(self, line, lexeme, token, type, paramTypes):
@@ -78,9 +79,9 @@ class IDFunction:
         self.link = linkNum
 
     def __str__(self):
-        #return f'IDENTIFIER (FUNCTION): {self.line}, {self.lexeme}, ' + (
-        #f'{self.token}, {self.type}, {self.paramTypes}')
-        return f'FUNCTION, {self.lexeme}'
+        return (f'FUNCTION [line: {self.line}, lexeme: {self.lexeme}' + 
+                f' token: {self.token}, type: {self.type}, parameter types:'+
+                f' {self.paramTypes}]')
 
 #Breaks output lines of lexicalAnalyzer up to make them easier to deal with.
 #First element is type of token, second element is token
@@ -145,10 +146,15 @@ def throwError(lineNum, lexeme, errorType, resolution):
 
 #Writes top of stack to outFile
 def writeStack(stack):
-    outFile.write(str(stack[0][0].link).ljust(3))
+    level = 0
+    for item in stack[0]:
+        if type(item).__name__ == 'Keyword':
+            level = item.link
+            break
+    outFile.write(str(level).ljust(3))
     outFile.write((len(stack) - 1) * '    ')
     for item in stack[0]:
-        outFile.write(str(item) + ' ')
+        outFile.write(str(item) + ', ')
     outFile.write('\n')
 
 '''
@@ -500,6 +506,6 @@ outFile = open(OUTFILE, 'w')
 errorFile = open(ERRORFILE, 'w')
 
 #Actual start of real work
-if not fail: 
+if not fail:
     AnalyseSemantics(inFile)
     print(f'Semantic analysis on file {inFileStr} completed')
