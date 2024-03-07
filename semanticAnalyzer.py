@@ -293,6 +293,7 @@ def AnalyseSemantics(inFile):
     #paramTypes...]
     checker = [] #List of checking type validity
     typeCheck = False
+    varlist = [False, 'int']
     global linkNum
     for line in lexicalFile:
         prev = lineSplit
@@ -324,16 +325,27 @@ def AnalyseSemantics(inFile):
                 checker.clear()
             if typeCheck or lineSplit[1] == 'return':
                 checker.append(line)
-        if lineSplit[0] == IDENTIFIER and lineSplit[1] not in seenIDs:
+        if varlist[0]:
+            if lineSplit[0] not in ['seperator', IDENTIFIER]:
+                varlist = [False, 'int']
+            elif lineSplit[0] == IDENTIFIER:
+                seenIDs.append(lineSplit[1])
+                stack[0].append(buildSymbol(lineNum, lineSplit[1],
+                                                lineSplit[0], varlist[1],
+                                                [NULL]))
+        elif lineSplit[0] == IDENTIFIER and lineSplit[1] not in seenIDs:
             if prev[1] not in types:
                 throwError(lineNum, lineSplit[1], 
                     'Undeclared Identifier/Inaccessible Identifier in Scope',
                     'ignoring error')
             else:
                 seenIDs.append(lineSplit[1])
-                if skipMode != 1:
+                #Declaring new variable(s)
+                if skipMode != 1 and skipMode != 4:
                     stack[0].append(buildSymbol(lineNum, lineSplit[1],
-                                                lineSplit[0], prev[1], [NULL]))
+                                                lineSplit[0], prev[1],
+                                                [NULL]))
+                    varlist = [True, prev[1]]
         elif lineSplit[0] == IDENTIFIER and lineSplit[1] in seenIDs and (
             prev[1] in types):
                 throwError(lineNum, lineSplit[1], 
@@ -460,7 +472,8 @@ def AnalyseSemantics(inFile):
                     'Undeclared Identifier/Inaccessible Identifier in Scope',
                     'ignoring error')
                     else:
-                        stack[0].append(stack[index[0]][index[1]])
+                        if not varlist[0]:
+                            stack[0].append(stack[index[0]][index[1]])
                 else:
                     stack[0].append(buildSymbol(lineNum, lineSplit[1], 
                                                 lineSplit[0], lineSplit[0], 
