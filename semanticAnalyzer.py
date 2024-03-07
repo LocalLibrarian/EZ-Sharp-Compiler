@@ -1,17 +1,11 @@
-'''
-TODO LIST
-1. Check variable references, see if they in a scope yet
-2. Check each side of comparisons and assignments to make sure the types are
-equivalent
-3. Check return types of functions
-'''
-
 #Constants
 OUTFILE = 'outputSemantic.txt'
 ERRORFILE = 'errorLogSemantic.txt'
 LEXICAL = 'outputLexical.txt'
 IDENTIFIER = 'identifier'
+ASSIGNMENT = 'assignment'
 NULL = 'NULL'
+MAXLINES = 100000 #Maximum lines in a code file
 
 #Lists used to determine when to create new scope/exit current one
 newTables = ['if', 'while', 'def', 'else']
@@ -19,6 +13,12 @@ endTables = ['fi', 'od', 'fed']
 
 #List used for valid types
 types = ['int', 'double', 'integer']
+
+#Comparators
+comparators = ['<>', '<', '>', '==', '>=', '<=']
+
+#Current table link ID index to use
+linkNum = 0
 
 #List of ALL seen identifiers
 seenIDs = []
@@ -34,9 +34,13 @@ class Keyword:
         self.line = line
         self.lexeme = lexeme
         self.token = token
+        self.link = linkNum
 
     def __str__(self):
         #return f'KEYWORD: {self.line}, {self.lexeme}, {self.token}'
+        #Properly return linkID to scope this token created on the stack
+        if self.lexeme in newTables:
+            return f'KEYWORD, {self.lexeme}, link: {self.link + 1}'
         return f'KEYWORD, {self.lexeme}'
 
 class Literal:
@@ -45,6 +49,7 @@ class Literal:
         self.lexeme = lexeme
         self.token = token
         self.type = type
+        self.link = linkNum
 
     def __str__(self):
         #return f'LITERAL: {self.line}, {self.lexeme}, {self.token}, {self.type}'
@@ -56,6 +61,7 @@ class IDVariable:
         self.lexeme = lexeme
         self.token = token
         self.type = type
+        self.link = linkNum
 
     def __str__(self):
         #return f'IDENTIFIER (FUNCTION): {self.line}, {self.lexeme}, ' + (
@@ -69,6 +75,7 @@ class IDFunction:
         self.token = token
         self.type = type
         self.paramTypes = paramTypes
+        self.link = linkNum
 
     def __str__(self):
         #return f'IDENTIFIER (FUNCTION): {self.line}, {self.lexeme}, ' + (
@@ -138,10 +145,133 @@ def throwError(lineNum, lexeme, errorType, resolution):
 
 #Writes top of stack to outFile
 def writeStack(stack):
+    outFile.write(str(stack[0][0].link).ljust(3))
     outFile.write((len(stack) - 1) * '    ')
     for item in stack[0]:
         outFile.write(str(item) + ' ')
     outFile.write('\n')
+
+'''
+Returns type of tokens (that have a function call in them).
+Checks function parameters for valid types as well.
+Helper function for getType()
+'''
+def checkFunctionType(tokens, stack):
+    i = 0
+    types = []
+    for token in tokens:
+        split = parseLexicalOutput(token)
+        if split[1] in seenFuncs:
+            index = findScope(stack, split[1])
+            if index != NULL:
+                valid = True
+                for t in stack[index[0]][index[1]].paramTypes:
+                    type2 = getType(tokens[i + 1:], stack)
+                    if t in ['int', 'integer'] and (type2 in 
+                                                    ['int', 'integer']):
+                        valid = True
+                    elif t == type2: valid = True
+                    else: valid = False
+                if not valid: #Invalid parameter types
+                    return NULL
+                else:
+                    types.append(stack[index[0]][index[1]].type)
+            else: #Error, wrong types, let calling function throw the error
+                return NULL
+        else:
+            if split[0] == IDENTIFIER:
+                index = findScope(stack, split[1])
+                if index != NULL:
+                    if (stack[index[0]][index[1]].type not in 
+                    ['int', 'integer']):
+                        types.append('double')
+                else: #Error, let calling func throw error
+                    return NULL
+        i += 1
+    for entry in types:
+        if entry == 'double': return entry
+    return 'integer'
+
+'''
+Returns the type of the tokens passed to it.
+Tokens will represent expressions like 3+x or 9/5-1 for example, and are thus
+simple to handle.
+This func can return NULL if an error occurs during type getting for IDs.
+'''
+def getType(tokens, stack):
+    foundID = False
+    foundFunc = False
+    #Check if func or var in tokens
+    for token in tokens:
+        split = parseLexicalOutput(token)
+        if split[0] == IDENTIFIER: 
+            foundID = True
+            if split[1] in seenFuncs: foundFunc = True
+    if not foundID: #No IDs in expression, simpler
+        #Check if we have division, it is a double always unless typecast to an
+        #int which is handled in the else block
+        for token in tokens:
+            split = parseLexicalOutput(token)
+            if split[1] == '/': return 'double'
+        for token in tokens:
+            split = parseLexicalOutput(token)
+            if split[0] in types and split[0] != 'integer': return 'double'
+        return 'integer'
+    else: #IDs in expression, harder
+        #Follows same rules as above EXCEPT that division can be made to be
+        #integer division if all IDs present are integer types
+        if foundFunc:
+            typed = checkFunctionType(tokens, stack)
+            if typed != NULL:
+                return typed
+            else: #Error, let calling function figure it out
+                return NULL
+        else: #Return double if we have any double type IDs, else int
+            for token in tokens:
+                split = parseLexicalOutput(token)
+                if split[0] == IDENTIFIER:
+                    index = findScope(stack, split[1])
+                    if index != NULL:
+                        if (stack[index[0]][index[1]].type not in 
+                        ['int', 'integer']):
+                            return 'double'
+                    else: #Error, let calling func throw error
+                        return NULL
+            return 'integer'
+
+'''
+Returns true if tokens passed to it is valid for type checking, false otherwise.
+Splits typec checking lines and checks each side.
+For assignments: declaration, expression
+For comparisons: left side, right side
+For returns: return, expression
+'''
+def checkType(tokens, stack):
+    index = 0
+    foundAssign = False
+    foundCompare = False
+    foundReturn = False
+    for token in tokens:
+        split = parseLexicalOutput(token)
+        if split[1] == '=': foundAssign = True
+        elif split[1] in comparators: foundCompare = True
+        elif split[1] == 'return': foundReturn = True
+        if not foundAssign and not foundCompare: index += 1
+    if foundAssign or foundCompare:
+        type1 = getType(tokens[:index], stack)
+        type2 = getType(tokens[index + 1:], stack)
+        if type1 == type2: return True
+        elif type1 in ['int', 'integer'] and type2 in ['int', 'integer']:
+            return True
+        return False
+    elif foundReturn:
+        type1 = stack[-1][-1].type
+        type2 = getType(tokens[1:], stack)
+        if type1 == type2: return True
+        elif type1 in ['int', 'integer'] and type2 in ['int', 'integer']:
+            return True
+        return False
+    return True
 
 #Analyzes semantics of the inFile and outputs symbol table to OUTFILE
 def AnalyseSemantics(inFile):
@@ -161,6 +291,9 @@ def AnalyseSemantics(inFile):
     lineSplit = [] #Holds data for a line in LEXICAL
     funcData = [] #Holds function data, format is [type, lineNum, name,
     #paramTypes...]
+    checker = [] #List of checking type validity
+    typeCheck = False
+    global linkNum
     for line in lexicalFile:
         prev = lineSplit
         lineSplit = parseLexicalOutput(line)
@@ -171,13 +304,46 @@ def AnalyseSemantics(inFile):
             else: #Move to next line
                 lineNum += 1
                 tokenNum = 0
+            if lineNum > len(text):
+                throwError(lineNum, lineSplit[1], 'Could Not Find Token in ' +
+                           'Code File', 'crashing parser')
+                break
         #Now we have the correct line number for output, proceed with analysis
+        if lineSplit[1] in ['return', 'if'] or (len(prev) > 0 and 
+                                                prev[0] == IDENTIFIER and 
+                                                lineSplit[1] == '='): 
+            typeCheck = True
+        if typeCheck:
+            if (lineSplit[0] == 'keyword' and lineSplit[1] not in 
+                ['return', 'if']) or (
+                lineSplit[1] == ';'):
+                typeCheck = False
+                if not checkType(checker, stack):
+                    throwError(lineNum, 'BEFORE ' + lineSplit[1], 
+                               'Invalid Type', 'ignoring error')
+                checker.clear()
+            if typeCheck or lineSplit[1] == 'return':
+                checker.append(line)
         if lineSplit[0] == IDENTIFIER and lineSplit[1] not in seenIDs:
-            seenIDs.append(lineSplit[1])
+            if prev[1] not in types:
+                throwError(lineNum, lineSplit[1], 
+                    'Undeclared Identifier/Inaccessible Identifier in Scope',
+                    'ignoring error')
+            else:
+                seenIDs.append(lineSplit[1])
+                if skipMode != 1:
+                    stack[0].append(buildSymbol(lineNum, lineSplit[1],
+                                                lineSplit[0], prev[1], [NULL]))
+        elif lineSplit[0] == IDENTIFIER and lineSplit[1] in seenIDs and (
+            prev[1] in types):
+                throwError(lineNum, lineSplit[1], 
+                    'Variable Already Defined',
+                    'ignoring error')
         if skipMode == 1: #Skip until ( encountered
             if lineSplit[1] == '(':
                 skipMode = 4
                 stack.insert(0, [])
+                linkNum += 1
                 stack[0].append(buildSymbol(lineNum, lineSplit[1], 
                                             lineSplit[0], NULL,
                                             [NULL]))
@@ -198,12 +364,13 @@ def AnalyseSemantics(inFile):
                     #scope
                     throwError(lineNum, lineSplit[1], 
                     'Undeclared Identifier/Inaccessible Identifier in Scope',
-                    'ignoring lexeme')
+                    'ignoring error')
             elif lineSplit[1] == 'then':
                 skipMode = 0
                 stack[0].append(buildSymbol(lineNum, lineSplit[1], lineSplit[0],
                                             NULL, [NULL]))
                 stack.insert(0, [])
+                linkNum += 1
             else:
                 stack[0].append(buildSymbol(lineNum, lineSplit[1], lineSplit[0],
                                             NULL, [NULL]))
@@ -217,12 +384,13 @@ def AnalyseSemantics(inFile):
                     #scope
                     throwError(lineNum, lineSplit[1], 
                     'Undeclared Identifier/Inaccessible Identifier in Scope',
-                    'ignoring lexeme')
+                    'ignoring error')
             elif lineSplit[1] == 'do':
                 skipMode = 0
                 stack[0].append(buildSymbol(lineNum, lineSplit[1], lineSplit[0],
                                             NULL, [NULL]))
                 stack.insert(0, [])
+                linkNum += 1
             else:
                 stack[0].append(buildSymbol(lineNum, lineSplit[1], lineSplit[0],
                                             NULL, [NULL]))
@@ -234,7 +402,12 @@ def AnalyseSemantics(inFile):
                 stack[1].append(buildSymbol(funcData[1], funcData[2], 
                                             IDENTIFIER, funcData[0], 
                                             funcData[3:]))
-                seenFuncs.append(funcData[2])
+                if funcData[2] in seenFuncs:
+                    throwError(lineNum, lineSplit[1], 
+                    'Function Already Defined',
+                    'ignoring error')
+                else:
+                    seenFuncs.append(funcData[2])
             #Add to types list
             elif lineSplit[1] in types:
                 funcData.append(lineSplit[1])
@@ -265,6 +438,7 @@ def AnalyseSemantics(inFile):
                     stack[0].append(buildSymbol(lineNum, lineSplit[1],
                                                 lineSplit[0], NULL, [NULL]))
                     stack.insert(0, [])
+                    linkNum += 1
             elif lineSplit[1] in endTables: #Exit current table
                 writeStack(stack)
                 del stack[0]
@@ -273,13 +447,24 @@ def AnalyseSemantics(inFile):
             else: #Add to current table on stack
                 if lineSplit[1] in seenFuncs:
                     index = findScope(stack, lineSplit[1])
-                    stack[0].append(stack[index[0]][index[1]])
+                    if index == NULL:
+                        throwError(lineNum, lineSplit[1], 
+                    'Undeclared Identifier/Inaccessible Identifier in Scope',
+                    'ignoring error')
+                    else:
+                        stack[0].append(stack[index[0]][index[1]])
                 elif lineSplit[1] in seenIDs:
                     index = findScope(stack, lineSplit[1])
-                    stack[0].append(stack[index[0]][index[1]])
+                    if index == NULL:
+                        throwError(lineNum, lineSplit[1], 
+                    'Undeclared Identifier/Inaccessible Identifier in Scope',
+                    'ignoring error')
+                    else:
+                        stack[0].append(stack[index[0]][index[1]])
                 else:
                     stack[0].append(buildSymbol(lineNum, lineSplit[1], 
-                                                lineSplit[0], lineSplit[0], [NULL]))
+                                                lineSplit[0], lineSplit[0], 
+                                                [NULL]))
     writeStack(stack)
 
 #Get input file name and open
