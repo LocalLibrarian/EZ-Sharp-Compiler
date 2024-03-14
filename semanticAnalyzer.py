@@ -316,13 +316,14 @@ def AnalyseSemantics(inFile):
                            'Code File', 'crashing parser')
                 break
         #Now we have the correct line number for output, proceed with analysis
-        if lineSplit[1] in ['return', 'if', 'while'] or (len(prev) > 0 and 
+        if lineSplit[1] in ['return', 'if', 'while', 'print'] or (len(prev) > 0 
+                                                                  and 
                                                 prev[0] == IDENTIFIER and 
                                                 lineSplit[1] == '='): 
             typeCheck = True
         if typeCheck:
             if (lineSplit[0] == 'keyword' and lineSplit[1] not in 
-                ['return', 'if', 'while']) or (
+                ['return', 'if', 'while', 'print']) or (
                 lineSplit[1] == ';'):
                 typeCheck = False
                 if not checkType(checker, stack):
