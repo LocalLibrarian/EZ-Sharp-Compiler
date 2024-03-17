@@ -1,16 +1,7 @@
 '''
 NOTES
-1. To fix issues where we have example:
-    x = 1 + 2 * y
-    will have to use parse tree to get order of ops right and divide up the
-    parts into segments of 2. The above may become for example:
-    _temp0 = 2 * y
-    x = _temp0 + 1
-2. Need to figure out how to do a parse tree when there is a function call in
-    the tokens. Probably needs its own tree for each parameter, then ignore the
-    parameters in the original tree after the parameters are resolved.
-3. To continue, need to make parse tree builder return what it says in its
-    describing comment, and also make it write to output
+1. Need to get function and main sizes still
+2. Need to get function params from stack too
 '''
 
 #Constants
@@ -47,8 +38,8 @@ class Function:
         self.numVars = numVars
 
     def __str__(self):
-        return f"FUNCTION: [{self.name}, count: {self.count}, needed vars: ]" +(
-            f"{self.numVars}")
+        return f"FUNCTION: [{self.name}, count: {self.count}, needed vars: " +(
+            f"{self.numVars}]")
     
 #Binary tree for parsing BEDMAS of expressions and making sure they are in
 #right order when reduced to TAC
@@ -116,9 +107,10 @@ def checkPrecedence(operator1: str, operator2: str) -> int:
         return 2
 
 #Returns func data class in funcData
-def getFuncData(func: str) -> bool:
+def getFuncData(func: str) -> Function:
     for funcName in funcData:
         if funcName.name == func: return funcName
+    return Function(NULL, NULL)
 
 #Removes unmatched brackets in tokens and returns result
 def removeUnmatchedBrackets(tokens: list[list[str]]) -> list[list[str]]:
@@ -182,12 +174,12 @@ def removeFunctionParams(tokens: list[list[str]]) -> tuple[list[list[str]], ]:
         temp = paramTokens[beginI:x]
         temp = removeUnmatchedBrackets(temp)
         params.append(temp)
-    print(params)
     return tokens[0:startI] + tokens[endI:], params
 
 #Builds a parse tree from an expression in tokens and returns the name of the
 #temp variable that the tree results in
 def buildParseTree(tokens: list[list[str]]) -> str:
+    global temps, output, funcData
     foundFunc = False #Check if there is a function in tokens
     maybeFunc = False
     for token in tokens:
@@ -196,11 +188,11 @@ def buildParseTree(tokens: list[list[str]]) -> str:
         else: maybeFunc = False
     root = ParseTree(NULL)
     current = root
-    if foundFunc: #TODO
+    if foundFunc: #Push params and finish actual tree
         holder = removeFunctionParams(tokens)
         for param in holder[1]:
-            buildParseTree(param)
-        buildParseTree(holder[0])
+            output.append(["push", "{" + buildParseTree(param) + "}"])
+        return buildParseTree(holder[0])
     else: #No function, easier
         for token in tokens:
             if token[1] == "(":
@@ -211,7 +203,7 @@ def buildParseTree(tokens: list[list[str]]) -> str:
                     current.data = token[1]
                     current.right = ParseTree(NULL, NULL, NULL, current)
                     current = current.right
-                else: #TODO handle accidentally deleting data??
+                else:
                     prec = checkPrecedence(current.data, token[1])
                     #token[1] is higher precedence
                     if prec == 1:
@@ -235,6 +227,68 @@ def buildParseTree(tokens: list[list[str]]) -> str:
                     current.parent = ParseTree(NULL, left=current)
                     root = current.parent
                 current = current.parent
+        #End of for loop, done making tree
+        if root.data == NULL: #Simplest case, only 1 value as the left child
+            if getFuncData(root.left.data).name != NULL:
+                output.append([TEMPLABEL + str(temps), "=", "jumpLink",
+                                       root.left.data])
+                temps += 1
+            else:
+                output.append([TEMPLABEL + str(temps), "=", root.left.data])
+                temps += 1
+            return TEMPLABEL + str(temps - 1)
+        else: #Trees have at least 3 nodes otherwise
+            node = root
+            while node.right != NULL:
+                node = node.right
+            while node.parent != NULL:
+                node = node.parent
+                #Check if have any functions to jumpLink to
+                if getFuncData(node.left.data).name != NULL or (
+                    getFuncData(node.right.data).name != NULL):
+                    #Left is function only
+                    if getFuncData(node.left.data).name != NULL and (
+                        getFuncData(node.right.data).name == NULL
+                    ):
+                        output.append([TEMPLABEL + str(temps), "=", "jumpLink",
+                                       node.left.data])
+                        temps += 1
+                        output.append([TEMPLABEL + str(temps), "=", 
+                                       TEMPLABEL + str(temps - 1), node.data,
+                                       node.right.data])
+                        temps += 1
+                    #Right is function only
+                    elif getFuncData(node.right.data).name != NULL and (
+                        getFuncData(node.left.data).name == NULL
+                    ):
+                        output.append([TEMPLABEL + str(temps), "=", "jumpLink",
+                                       node.right.data])
+                        temps += 1
+                        output.append([TEMPLABEL + str(temps), "=", 
+                                       TEMPLABEL + str(temps - 1), node.data,
+                                       node.left.data])
+                        temps += 1
+                    #Both are functions
+                    else:
+                        output.append([TEMPLABEL + str(temps), "=", "jumpLink",
+                                       node.left.data])
+                        temps += 1
+                        output.append([TEMPLABEL + str(temps), "=", "jumpLink",
+                                       node.right.data])
+                        temps += 1
+                        output.append([TEMPLABEL + str(temps), "=",
+                                       TEMPLABEL + str(temps - 2),
+                                       TEMPLABEL + str(temps - 1)])
+                        temps += 1
+                elif node.right.data in operators:
+                    output.append([TEMPLABEL + str(temps), "=", node.left.data,
+                                   node.data, TEMPLABEL + str(temps - 1)])
+                    temps += 1
+                else:
+                    output.append([TEMPLABEL + str(temps), "=", node.left.data,
+                                   node.data, node.right.data])
+                    temps += 1
+            return TEMPLABEL + str(temps - 1)
 
 #Checks counts of elements in tokens and updates the output as needed
 def checkCount(tokens: list[list[str]], currentName: str) -> None:
@@ -252,17 +306,10 @@ def checkCount(tokens: list[list[str]], currentName: str) -> None:
         if not foundAssign and not foundCompare: index += 1
     ending = JUMPLABEL + str(jumps)
     if foundCompare:
-        #a == b for example in this case
         type = comparators[comparators.index(tokens[index][1])]
-        count1 = countElements(tokens[:index])
-        count2 = countElements(tokens[index + 1:])
-        if count1 == 1 and (
-            count2 == 1):
-            index1, index2 = findIDLiteralIndex(tokens)
-            output.append(["cmp", tokens[index1][1] + ",", tokens[index2][1]])
-        else:
-            #TODO
-            print("TODO: HANDLE INCORRECT NUMBERS WITH PARSE TREE?")
+        left = buildParseTree(tokens[:index])
+        right = buildParseTree(tokens[index + 1:])
+        output.append(["cmp", left + ",", right])
         if type == "<>": 
             output.append(["jumpNotEqual", ending])
         elif type == "<":
@@ -282,31 +329,12 @@ def checkCount(tokens: list[list[str]], currentName: str) -> None:
         output.append([JUMPLABEL + str(jumps - 1) + ":"])
         jumps += 1
     elif foundReturn:
-        #return (a) for example in this case
-        if countElements(tokens) == 1:
-            index1, index2 = findIDLiteralIndex(tokens) #Can ignore index2 here
-            output.append(["fp", "-", "4", "=", tokens[index1][1]])
-        else:
-            #TODO
-            print("TODO: HANDLE INCORRECT NUMBERS WITH PARSE TREE?")
-            output.append(["improper", "return"])
+        output.append(["fp", "-", "4", "=", buildParseTree(tokens)]) 
         output.append(["jump", "exit" + currentName])
     elif foundAssign:
-        #TODO
-        print("TODO (assignment)")
+        output.append([tokens[0][1], "=", buildParseTree(tokens[index + 1:])])
     elif foundPrint:
-        #Something like print 10 for example
-        if countElements(tokens) == 1:
-            retVal = []
-            for token in tokens:
-                retVal.append(token[1])
-                if token[1] == "print": retVal.append("(")
-            retVal.append(")")
-            output.append(retVal)
-        else:
-            #TODO
-            print("TODO IMPROPER PRINTS")
-            output.append(["improper", "print"])
+        output.append(["print", "(" + buildParseTree(tokens) + ")"])
 
 #Main work function
 def TACGeneration() -> None:
@@ -343,7 +371,7 @@ def TACGeneration() -> None:
         if countCheck:
             if (lineSplit[0] == 'keyword' and lineSplit[1] not in 
                 ['return', 'if', 'while', 'print']) or (
-                lineSplit[1] == ';'):
+                lineSplit[1] == ';' or lineSplit[0] == "programEnder"):
                 countCheck = False
                 checkCount(checker, currentName)
                 checker.clear()
@@ -389,14 +417,6 @@ def TACGeneration() -> None:
                 output.append([stackJumpReturn[-1] + ":"])
                 del stackJumpReturn[-1]
                 jumps += 1
-        elif inMain:
-            '''
-            Done function defs. Not an else/fi. General other statements then,
-            like inits or prints, go here.
-            TODO check for while loops (do/od)
-            '''
-            #TODO
-            print("IN MAIN, TODO")
     writeOutput()
     
 #Get input file name and open
@@ -427,5 +447,3 @@ outFile = open(OUTFILE, 'w')
 if not fail:
     TACGeneration()
     print(f'TAC generation on file {inFileStr} completed.')
-    text = [[IDENTIFIER, "gcd"],["sep", "("],["sep", "("],[IDENTIFIER, "a"],["operator", "-"],[IDENTIFIER,"b"], ["sep", ","], [IDENTIFIER, "b"], ["sep", ")"], ["sep", ")"],["operator", "-"], ["integer", 3]]
-    x = buildParseTree(text)
