@@ -28,6 +28,7 @@ funcData = [] #Holds Function classes that contain param counts
 varsUsed = 0 #Holds number of vars used in a function/main
 lastID = NULL #Holds last ID name
 whileJumpBack = NULL #Used to jump back to a while condition check
+seenVars = []
 
 #Holds data about number of parameters (count) for a function
 class Function:
@@ -179,7 +180,7 @@ def removeFunctionParams(tokens: list[list[str]]) -> tuple[list[list[str]], ]:
 #Builds a parse tree from an expression in tokens and returns the name of the
 #temp variable that the tree results in
 def buildParseTree(tokens: list[list[str]]) -> str:
-    global temps, output, funcData, varsUsed
+    global temps, output, funcData, varsUsed, seenVars
     foundFunc = False #Check if there is a function in tokens
     maybeFunc = False
     for token in tokens:
@@ -236,6 +237,23 @@ def buildParseTree(tokens: list[list[str]]) -> str:
                 varsUsed += 1
             else:
                 output.append([TEMPLABEL + str(temps), "=", root.left.data])
+                temps += 1
+                varsUsed += 1
+            return TEMPLABEL + str(temps - 1)
+        #Something like -a, for example
+        elif root.left == NULL and root.right.data != NULL:
+            if getFuncData(root.right.data).name != NULL:
+                output.append([TEMPLABEL + str(temps), "=", "jumpLink",
+                                       root.right.data])
+                temps += 1
+                varsUsed += 1
+                output.append([TEMPLABEL + str(temps), "=", "-1", "*",
+                                TEMPLABEL + str(temps - 1)])
+                temps += 1
+                varsUsed += 1
+            else:
+                output.append([TEMPLABEL + str(temps), "=", "-1", "*", 
+                               root.right.data])
                 temps += 1
                 varsUsed += 1
             return TEMPLABEL + str(temps - 1)
@@ -303,7 +321,7 @@ def buildParseTree(tokens: list[list[str]]) -> str:
 
 #Checks counts of elements in tokens and updates the output as needed
 def checkCount(tokens: list[list[str]], currentName: str) -> None:
-    global output, jumps, stackJumpReturn, whileJumpBack
+    global output, jumps, stackJumpReturn, whileJumpBack, varsUsed, seenVars
     index = 0
     foundAssign = False
     foundCompare = False
@@ -348,10 +366,19 @@ def checkCount(tokens: list[list[str]], currentName: str) -> None:
         output.append([JUMPLABEL + str(jumps - 1) + ":"])
         jumps += 1
     elif foundReturn:
-        output.append(["fp", "-", "4", "=", buildParseTree(tokens)]) 
+        output.append(["fp", "-", str(VARSIZE), "=", buildParseTree(tokens)]) 
         output.append(["jump", "exit" + currentName])
     elif foundAssign:
         output.append([lastID, "=", buildParseTree(tokens[index + 1:])])
+        holder = getFuncData(currentName)
+        if holder.name != NULL:
+            if lastID not in holder.paramNames and lastID not in seenVars:
+                varsUsed += 1
+                seenVars.append(lastID)
+        else: #In main
+            if lastID not in seenVars:
+                varsUsed += 1
+                seenVars.append(lastID)
     elif foundPrint:
         output.append(["print", "(" + buildParseTree(tokens) + ")"])
 
@@ -401,7 +428,7 @@ def TACGeneration() -> None:
                 pOffset = 8
                 for param in reversed(funcData[-1].paramNames):
                     output.append([param, "=", "fp", "+", str(pOffset)])
-                    pOffset += 4
+                    pOffset += VARSIZE
                 varsUsed += funcData[-1].count
                 output.append([])
         #Check if need to check number of elements
@@ -454,11 +481,15 @@ def TACGeneration() -> None:
             currentName = NULL
             funcData[-1].numVars = varsUsed
             varsUsed = 0
+            seenVars.clear()
         #Unconditional jump to new scope
         if lineSplit[1] == "else":
+            output.append(["jump", JUMPLABEL + str(jumps)])
+            stackJumpReturn.append(JUMPLABEL + str(jumps))
+            jumps += 1
             output.append([])
-            output.append([stackJumpReturn[-1] + ":"])
-            del stackJumpReturn[-1]
+            output.append([stackJumpReturn[-2] + ":"])
+            del stackJumpReturn[-2]
         #Exit if, may need a label if no elses were present
         elif lineSplit[1] == "fi":
             if len(stackJumpReturn) > 0:
