@@ -1,9 +1,3 @@
-'''
-NOTES
-1. Need to get function and main sizes still
-2. Need to get function params from stack too
-'''
-
 #Constants
 OUTFILE = "outputTAC.txt"
 SEMANTIC = "outputSemantic.txt"
@@ -16,6 +10,8 @@ INTEGER = "integer"
 DOUBLE = "double"
 JUMPLABEL = "place"
 TEMPLABEL = "_temp"
+BEGIN = "begin"
+VARSIZE = 4
 
 #Comparators
 comparators = ['<>', '<', '>', '==', '>=', '<=']
@@ -29,17 +25,21 @@ jumps = 0 #Counts number of jump labels
 temps = 0 #Counts number of temporary variables
 stackJumpReturn = [] #Stack of next jump label to place for sub-scopes
 funcData = [] #Holds Function classes that contain param counts
+varsUsed = 0 #Holds number of vars used in a function/main
+lastID = NULL #Holds last ID name
+whileJumpBack = NULL #Used to jump back to a while condition check
 
 #Holds data about number of parameters (count) for a function
 class Function:
-    def __init__(self, name, count, numVars = 0):
+    def __init__(self, name, count, numVars = 0, paramNames = []):
         self.name = name
         self.count = count
         self.numVars = numVars
+        self.paramNames = paramNames.copy()
 
     def __str__(self):
-        return f"FUNCTION: [{self.name}, count: {self.count}, needed vars: " +(
-            f"{self.numVars}]")
+        return f"FUNCTION: [{self.name}, count: {self.count}, names: " + (
+            f"{self.paramNames}, needed vars: {self.numVars}]")
     
 #Binary tree for parsing BEDMAS of expressions and making sure they are in
 #right order when reduced to TAC
@@ -179,7 +179,7 @@ def removeFunctionParams(tokens: list[list[str]]) -> tuple[list[list[str]], ]:
 #Builds a parse tree from an expression in tokens and returns the name of the
 #temp variable that the tree results in
 def buildParseTree(tokens: list[list[str]]) -> str:
-    global temps, output, funcData
+    global temps, output, funcData, varsUsed
     foundFunc = False #Check if there is a function in tokens
     maybeFunc = False
     for token in tokens:
@@ -233,9 +233,11 @@ def buildParseTree(tokens: list[list[str]]) -> str:
                 output.append([TEMPLABEL + str(temps), "=", "jumpLink",
                                        root.left.data])
                 temps += 1
+                varsUsed += 1
             else:
                 output.append([TEMPLABEL + str(temps), "=", root.left.data])
                 temps += 1
+                varsUsed += 1
             return TEMPLABEL + str(temps - 1)
         else: #Trees have at least 3 nodes otherwise
             node = root
@@ -253,10 +255,12 @@ def buildParseTree(tokens: list[list[str]]) -> str:
                         output.append([TEMPLABEL + str(temps), "=", "jumpLink",
                                        node.left.data])
                         temps += 1
+                        varsUsed += 1
                         output.append([TEMPLABEL + str(temps), "=", 
                                        TEMPLABEL + str(temps - 1), node.data,
                                        node.right.data])
                         temps += 1
+                        varsUsed += 1
                     #Right is function only
                     elif getFuncData(node.right.data).name != NULL and (
                         getFuncData(node.left.data).name == NULL
@@ -264,51 +268,66 @@ def buildParseTree(tokens: list[list[str]]) -> str:
                         output.append([TEMPLABEL + str(temps), "=", "jumpLink",
                                        node.right.data])
                         temps += 1
+                        varsUsed += 1
                         output.append([TEMPLABEL + str(temps), "=", 
                                        TEMPLABEL + str(temps - 1), node.data,
                                        node.left.data])
                         temps += 1
+                        varsUsed += 1
                     #Both are functions
                     else:
                         output.append([TEMPLABEL + str(temps), "=", "jumpLink",
                                        node.left.data])
                         temps += 1
+                        varsUsed += 1
                         output.append([TEMPLABEL + str(temps), "=", "jumpLink",
                                        node.right.data])
                         temps += 1
+                        varsUsed += 1
                         output.append([TEMPLABEL + str(temps), "=",
                                        TEMPLABEL + str(temps - 2),
                                        TEMPLABEL + str(temps - 1)])
                         temps += 1
+                        varsUsed += 1
                 elif node.right.data in operators:
                     output.append([TEMPLABEL + str(temps), "=", node.left.data,
                                    node.data, TEMPLABEL + str(temps - 1)])
                     temps += 1
+                    varsUsed += 1
                 else:
                     output.append([TEMPLABEL + str(temps), "=", node.left.data,
                                    node.data, node.right.data])
                     temps += 1
+                    varsUsed += 1
             return TEMPLABEL + str(temps - 1)
 
 #Checks counts of elements in tokens and updates the output as needed
 def checkCount(tokens: list[list[str]], currentName: str) -> None:
-    global output, jumps, stackJumpReturn
+    global output, jumps, stackJumpReturn, whileJumpBack
     index = 0
     foundAssign = False
     foundCompare = False
     foundReturn = False
     foundPrint = False
+    foundWhile = False
     for token in tokens:
         if token[1] == '=': foundAssign = True
         elif token[1] in comparators: foundCompare = True
         elif token[1] == 'return': foundReturn = True
         elif token[1] == "print": foundPrint = True
+        elif token[1] == "while": foundWhile = True
         if not foundAssign and not foundCompare: index += 1
     ending = JUMPLABEL + str(jumps)
     if foundCompare:
         type = comparators[comparators.index(tokens[index][1])]
         left = buildParseTree(tokens[:index])
         right = buildParseTree(tokens[index + 1:])
+        if foundWhile:
+            output.append([])
+            output.append([ending + ":"])
+            whileJumpBack = ending
+            jumps += 1
+            ending = JUMPLABEL + str(jumps)
         output.append(["cmp", left + ",", right])
         if type == "<>": 
             output.append(["jumpNotEqual", ending])
@@ -332,13 +351,27 @@ def checkCount(tokens: list[list[str]], currentName: str) -> None:
         output.append(["fp", "-", "4", "=", buildParseTree(tokens)]) 
         output.append(["jump", "exit" + currentName])
     elif foundAssign:
-        output.append([tokens[0][1], "=", buildParseTree(tokens[index + 1:])])
+        output.append([lastID, "=", buildParseTree(tokens[index + 1:])])
     elif foundPrint:
         output.append(["print", "(" + buildParseTree(tokens) + ")"])
 
+#Fixes output to have the correct size for each function and main
+def fixSizes() -> None:
+    global output
+    x = 0
+    while x < len(output):
+        #Check if we are at a BEGIN statement
+        if len(output[x]) > 1 and output[x][1] == SIZEPLACEHOLDER:
+            holder = getFuncData(output[x - 1][0][:-1])
+            if holder.name != NULL:
+                output[x][1] = str(holder.numVars * VARSIZE)
+            else: #Main
+                output[x][1] = str(varsUsed * VARSIZE)
+        x += 1
+
 #Main work function
 def TACGeneration() -> None:
-    global output, jumps, stackJumpReturn, funcData
+    global output, jumps, stackJumpReturn, funcData, varsUsed, lastID
     waitForFunc = False #Check if waiting for function name
     possiblyAtMain = True #Check if done doing function defs
     inMain = False #Check if in main
@@ -349,18 +382,28 @@ def TACGeneration() -> None:
     prev = [] #Holds previous lineSplit
     countCheck = False #Check for if need to check number of elements
     checker = [] #Holds lineSplits to check counts on
+    paramNames = [] #Holds parameter names for a function
     for line in lexicalFile:
         prev = lineSplit
         lineSplit = parseLexicalOutput(line)
-        #Save count of params
+        #Save count, name of params
         if getFuncData:
             if lineSplit[0] == IDENTIFIER:
                 count += 1
+                paramNames.append(lineSplit[1])
             #Add data to list of function info
             elif lineSplit[1] == ")":
-                funcData.append(Function(currentName, count))
+                funcData.append(Function(currentName, count, 0,
+                                         paramNames))
                 getFuncData = False
                 count = 0
+                paramNames.clear()
+                pOffset = 8
+                for param in reversed(funcData[-1].paramNames):
+                    output.append([param, "=", "fp", "+", str(pOffset)])
+                    pOffset += 4
+                varsUsed += funcData[-1].count
+                output.append([])
         #Check if need to check number of elements
         elif lineSplit[1] in ['return', 'if', 'while', 'print'] or (len(prev) 
                                                                     > 0 and 
@@ -375,8 +418,12 @@ def TACGeneration() -> None:
                 countCheck = False
                 checkCount(checker, currentName)
                 checker.clear()
-            if countCheck or lineSplit[1] in ['return', "print"]:
+            if countCheck or lineSplit[1] in ['return', "print", "while"]:
                 checker.append(lineSplit)
+            if countCheck and len(prev) > 0 and prev[0] == IDENTIFIER and (
+                lineSplit[1] == "="
+            ):
+                lastID = prev[1]
         #Entering function declaration
         if lineSplit[1] == "def": 
             waitForFunc = True
@@ -384,7 +431,7 @@ def TACGeneration() -> None:
         #Saving function name and doing general init stuff
         elif waitForFunc and lineSplit[0] == IDENTIFIER:
             output.append([lineSplit[1] + ":"])
-            output.append(["begin", SIZEPLACEHOLDER])
+            output.append([BEGIN, SIZEPLACEHOLDER])
             output.append(["push", "{LR}"])
             output.append(["push", "{FP}"])
             output.append([])
@@ -395,7 +442,7 @@ def TACGeneration() -> None:
         elif not inMain and possiblyAtMain and lineSplit[1] != "def":
             output.append([])
             output.append(["main:"])
-            output.append(["begin", SIZEPLACEHOLDER])
+            output.append([BEGIN, SIZEPLACEHOLDER])
             inMain = True
         #Exiting function
         elif lineSplit[1] == "fed": 
@@ -405,6 +452,8 @@ def TACGeneration() -> None:
             output.append(["pop", "{FP}"])
             output.append(["pop", "{PC}"])
             currentName = NULL
+            funcData[-1].numVars = varsUsed
+            varsUsed = 0
         #Unconditional jump to new scope
         if lineSplit[1] == "else":
             output.append([])
@@ -417,6 +466,13 @@ def TACGeneration() -> None:
                 output.append([stackJumpReturn[-1] + ":"])
                 del stackJumpReturn[-1]
                 jumps += 1
+        #End a while loop
+        elif lineSplit[1] == "od":
+            output.append(["jump", whileJumpBack])
+            output.append([])
+            output.append([stackJumpReturn[-1] + ":"])
+            del stackJumpReturn[-1]
+    fixSizes()
     writeOutput()
     
 #Get input file name and open
