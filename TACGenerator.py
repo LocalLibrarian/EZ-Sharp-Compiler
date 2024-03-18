@@ -1,6 +1,5 @@
 #Constants
 OUTFILE = "outputTAC.txt"
-SEMANTIC = "outputSemantic.txt"
 LEXICAL = "outputLexical.txt"
 IDENTIFIER = 'identifier'
 SIZEPLACEHOLDER = "INSERTSIZEHERE"
@@ -518,7 +517,6 @@ try:
         fail = True
         print(f'File extension .{checker[1]} is not supported!')
     try: #Open other required output files from previous phases
-        semanticFile = open(SEMANTIC, "r")
         lexicalFile = open(LEXICAL, "r")
     except:
         fail = True
