@@ -216,11 +216,22 @@ def buildParseTree(tokens: list[list[str]]) -> str:
                         current.right.data = token[1]
                         current = current.right.right
                     else: #token[1] is equal or lower precedence
-                        current.parent = ParseTree(token[1], current)
-                        root = current.parent
-                        current.parent.right = ParseTree(NULL, 
-                                                         parent=current.parent)
-                        current = current.parent.right
+                        if current.parent == NULL:
+                            current.parent = ParseTree(token[1], current)
+                            root = current.parent
+                            current.parent.right = ParseTree(NULL, 
+                                                        parent=current.parent)
+                            current = current.parent.right
+                        else:
+                            current.parent.right = ParseTree(token[1], 
+                                                         parent=current.parent,
+                                                         right = current)
+                            current.parent = current.parent.right
+                            if current.parent == NULL:
+                                root = current.parent
+                            current.parent.left = ParseTree(NULL, 
+                                                        parent=current.parent)
+                            current = current.parent.left
             elif token[0] in [INTEGER, DOUBLE, IDENTIFIER]:
                 current.data = token[1]
                 if current.parent == NULL: #Root node
