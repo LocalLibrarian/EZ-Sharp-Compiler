@@ -162,9 +162,20 @@ def removeFunctionParams(tokens: list[list[str]]) -> tuple[list[list[str]], ]:
     beginI = 0
     params = [] #List of params split at commas
     x = 0
-    paramTokens = tokens[startI: endI]
+    paramTokens = tokens[startI + 1: endI]
+    stack = 0
+    maybeFunc = False
+    atFunc = False
     while x < len(paramTokens): #Splitting params
-        if paramTokens[x][1] == ",":
+        if paramTokens[x][0] == IDENTIFIER:
+            maybeFunc = True
+        elif paramTokens[x][1] == "(" and maybeFunc:
+            atFunc = True
+            stack += 1
+            maybeFunc = False
+        elif paramTokens[x][1] == ")" and atFunc: stack -= 1
+        if stack == 0: atFunc = False
+        if paramTokens[x][1] == "," and not atFunc:
             temp = paramTokens[beginI:x]
             temp = removeUnmatchedBrackets(temp)
             params.append(temp)
@@ -216,11 +227,11 @@ def buildParseTree(tokens: list[list[str]]) -> str:
                         current.right.data = token[1]
                         current = current.right.right
                     else: #token[1] is equal or lower precedence
-                        current.parent = ParseTree(token[1], current)
+                        current.parent = ParseTree(token[1], right=current)
                         root = current.parent
-                        current.parent.right = ParseTree(NULL, 
+                        current.parent.left = ParseTree(NULL, 
                                                          parent=current.parent)
-                        current = current.parent.right
+                        current = current.parent.left
             elif token[0] in [INTEGER, DOUBLE, IDENTIFIER]:
                 current.data = token[1]
                 if current.parent == NULL: #Root node
@@ -234,6 +245,11 @@ def buildParseTree(tokens: list[list[str]]) -> str:
                                        root.left.data])
                 temps += 1
                 varsUsed += 1
+                holder = getFuncData(root.left.data)
+                x = 0
+                while x < len(holder.paramNames):
+                    output.append(["pop", "{" + TEMPLABEL + str(temps - (x + 2)) + "}"])
+                    x += 1
             else:
                 output.append([TEMPLABEL + str(temps), "=", root.left.data])
                 temps += 1
@@ -246,6 +262,11 @@ def buildParseTree(tokens: list[list[str]]) -> str:
                                        root.right.data])
                 temps += 1
                 varsUsed += 1
+                holder = getFuncData(root.right.data)
+                x = 0
+                while x < len(holder.paramNames):
+                    output.append(["pop", "{" + TEMPLABEL + str(temps - (x + 2)) + "}"])
+                    x += 1
                 output.append([TEMPLABEL + str(temps), "=", "-1", "*",
                                 TEMPLABEL + str(temps - 1)])
                 temps += 1
@@ -273,6 +294,11 @@ def buildParseTree(tokens: list[list[str]]) -> str:
                                        node.left.data])
                         temps += 1
                         varsUsed += 1
+                        holder = getFuncData(node.left.data)
+                        x = 0
+                        while x < len(holder.paramNames):
+                            output.append(["pop", "{" + TEMPLABEL + str(temps - (x + 2)) + "}"])
+                            x += 1
                         output.append([TEMPLABEL + str(temps), "=", 
                                        TEMPLABEL + str(temps - 1), node.data,
                                        node.right.data])
@@ -286,9 +312,14 @@ def buildParseTree(tokens: list[list[str]]) -> str:
                                        node.right.data])
                         temps += 1
                         varsUsed += 1
+                        holder = getFuncData(node.right.data)
+                        x = 0
+                        while x < len(holder.paramNames):
+                            output.append(["pop", "{" + TEMPLABEL + str(temps - (x + 2)) + "}"])
+                            x += 1
                         output.append([TEMPLABEL + str(temps), "=", 
-                                       TEMPLABEL + str(temps - 1), node.data,
-                                       node.left.data])
+                                       node.left.data, node.data,
+                                       TEMPLABEL + str(temps - 1)])
                         temps += 1
                         varsUsed += 1
                     #Both are functions
@@ -297,18 +328,29 @@ def buildParseTree(tokens: list[list[str]]) -> str:
                                        node.left.data])
                         temps += 1
                         varsUsed += 1
+                        holder = getFuncData(node.left.data)
+                        x = 0
+                        while x < len(holder.paramNames):
+                            output.append(["pop", "{" + TEMPLABEL + str(temps - (x + 2)) + "}"])
+                            x += 1
                         output.append([TEMPLABEL + str(temps), "=", "jumpLink",
                                        node.right.data])
                         temps += 1
                         varsUsed += 1
+                        holder = getFuncData(node.right.data)
+                        x = 0
+                        while x < len(holder.paramNames):
+                            output.append(["pop", "{" + TEMPLABEL + str(temps - (x + 2)) + "}"])
+                            x += 1
                         output.append([TEMPLABEL + str(temps), "=",
                                        TEMPLABEL + str(temps - 2),
                                        TEMPLABEL + str(temps - 1)])
                         temps += 1
                         varsUsed += 1
                 elif node.right.data in operators:
-                    output.append([TEMPLABEL + str(temps), "=", node.left.data,
-                                   node.data, TEMPLABEL + str(temps - 1)])
+                    output.append([TEMPLABEL + str(temps), "=", 
+                                   TEMPLABEL + str(temps - 1),
+                                   node.data, node.left.data])
                     temps += 1
                     varsUsed += 1
                 else:
