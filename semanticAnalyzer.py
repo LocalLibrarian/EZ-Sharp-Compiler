@@ -247,7 +247,7 @@ def getType(tokens, stack):
 
 '''
 Returns true if tokens passed to it is valid for type checking, false otherwise.
-Splits typec checking lines and checks each side.
+Splits type checking lines and checks each side.
 For assignments: declaration, expression
 For comparisons: left side, right side
 For returns: return, expression
@@ -377,7 +377,15 @@ def AnalyseSemantics(inFile):
             if lineSplit[1] in seenIDs:
                 index = findScope(stack, lineSplit[1]) 
                 if index != NULL:
-                    stack[0].append(stack[index[0]][index[1]])
+                    temp = stack[index[0]][index[1]]
+                    try:
+                        stack[0].append(buildSymbol(lineNum, temp.lexeme,
+                                                    temp.token, temp.type,
+                                                    temp.paramTypes))
+                    except:
+                        stack[0].append(buildSymbol(lineNum, temp.lexeme,
+                                                    temp.token, temp.type,
+                                                    NULL))
                 else:
                     #Error, variable isn't declared or can't be accessed in this
                     #scope
@@ -397,7 +405,15 @@ def AnalyseSemantics(inFile):
             if lineSplit[1] in seenIDs:
                 index = findScope(stack, lineSplit[1]) 
                 if index != NULL:
-                    stack[0].append(stack[index[0]][index[1]])
+                    temp = stack[index[0]][index[1]]
+                    try:
+                        stack[0].append(buildSymbol(lineNum, temp.lexeme,
+                                                    temp.token, temp.type,
+                                                    temp.paramTypes))
+                    except:
+                        stack[0].append(buildSymbol(lineNum, temp.lexeme,
+                                                    temp.token, temp.type,
+                                                    NULL))
                 else:
                     #Error, variable isn't declared or can't be accessed in this
                     #scope
@@ -471,7 +487,15 @@ def AnalyseSemantics(inFile):
                     'Undeclared Identifier/Inaccessible Identifier in Scope',
                     'ignoring error')
                     else:
-                        stack[0].append(stack[index[0]][index[1]])
+                        temp = stack[index[0]][index[1]]
+                        try:
+                            stack[0].append(buildSymbol(lineNum, temp.lexeme,
+                                                    temp.token, temp.type,
+                                                    temp.paramTypes))
+                        except:
+                            stack[0].append(buildSymbol(lineNum, temp.lexeme,
+                                                    temp.token, temp.type,
+                                                    NULL))
                 elif lineSplit[1] in seenIDs:
                     index = findScope(stack, lineSplit[1])
                     if index == NULL:
@@ -480,7 +504,15 @@ def AnalyseSemantics(inFile):
                     'ignoring error')
                     else:
                         if not varlist[0]:
-                            stack[0].append(stack[index[0]][index[1]])
+                            temp = stack[index[0]][index[1]]
+                            try:
+                                stack[0].append(buildSymbol(lineNum, temp.lexeme,
+                                                    temp.token, temp.type,
+                                                    temp.paramTypes))
+                            except:
+                                stack[0].append(buildSymbol(lineNum, temp.lexeme,
+                                                    temp.token, temp.type,
+                                                    NULL))
                 else:
                     stack[0].append(buildSymbol(lineNum, lineSplit[1], 
                                                 lineSplit[0], lineSplit[0], 
